@@ -5,6 +5,7 @@ import * as ordersApi from '@/api/orders'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Spinner } from '@/components/Spinner'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { toOrderId } from '@/utils/displayIds'
 
 export function OrdersPage() {
   const { data: orders, isLoading, error } = useQuery({
@@ -32,7 +33,7 @@ export function OrdersPage() {
           <Link key={order.uuid} to={`/orders/${order.uuid}`} className="card p-5 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono text-xs text-gray-400 mb-1">#{order.uuid.slice(0, 8).toUpperCase()}</p>
+                <p className="text-xs text-gray-500 mb-1">Order ID: {toOrderId(order.uuid)}</p>
                 <p className="font-semibold text-gray-900">{order.items.length} item{order.items.length !== 1 ? 's' : ''}</p>
                 <p className="text-sm text-gray-500 mt-0.5">₹{order.totalAmount.toFixed(2)}</p>
               </div>

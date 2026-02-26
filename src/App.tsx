@@ -7,6 +7,8 @@ import { ProtectedRoute } from '@/layouts/ProtectedRoute'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { VerifyOtpPage } from '@/pages/auth/VerifyOtpPage'
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 
 // Buyer
 import { ProductsPage } from '@/pages/buyer/ProductsPage'
@@ -45,6 +47,8 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* App layout */}
         <Route element={<MainLayout />}>

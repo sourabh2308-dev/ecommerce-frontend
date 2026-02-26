@@ -11,6 +11,7 @@ import { Spinner } from '@/components/Spinner'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Modal } from '@/components/Modal'
 import toast from 'react-hot-toast'
+import { BANK_OPTIONS, INDIAN_STATES_AND_UTS } from '@/constants/formOptions'
 
 const profileSchema = z.object({
   firstName: z.string().min(1, 'Required').max(50),
@@ -33,20 +34,20 @@ const passwordSchema = z.object({
 type PasswordForm = z.infer<typeof passwordSchema>
 
 const sellerDetailSchema = z.object({
-  businessName: z.string().min(1, 'Required'),
+  businessName: z.string().min(2, 'Business name must be at least 2 characters'),
   businessType: z.string().min(1, 'Required'),
-  gstNumber: z.string().optional(),
-  panNumber: z.string().optional(),
-  addressLine1: z.string().min(1, 'Required'),
+  gstNumber: z.string().regex(/^[0-9A-Z]{15}$/, 'GST must be 15 alphanumeric characters').optional().or(z.literal('')),
+  panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'PAN must be in valid format').optional().or(z.literal('')),
+  addressLine1: z.string().min(5, 'Address line 1 must be at least 5 characters'),
   addressLine2: z.string().optional(),
-  city: z.string().min(1, 'Required'),
-  state: z.string().min(1, 'Required'),
+  city: z.string().regex(/^[A-Za-z .'-]{2,100}$/, 'Invalid city name'),
+  state: z.enum(INDIAN_STATES_AND_UTS, { message: 'Please select a valid state/UT' }),
   pincode: z.string().regex(/^\d{6}$/, 'Must be 6 digits'),
   idType: z.string().min(1, 'Required'),
-  idNumber: z.string().min(1, 'Required'),
-  bankAccountNumber: z.string().min(1, 'Required'),
-  bankIfscCode: z.string().min(1, 'Required'),
-  bankName: z.string().min(1, 'Required'),
+  idNumber: z.string().min(4, 'ID number is too short'),
+  bankAccountNumber: z.string().regex(/^\d{9,18}$/, 'Account number must be 9-18 digits'),
+  bankIfscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC format'),
+  bankName: z.enum(BANK_OPTIONS, { message: 'Please select a bank' }),
 })
 type SellerDetailForm = z.infer<typeof sellerDetailSchema>
 
@@ -255,11 +256,13 @@ export function ProfilePage() {
               </div>
               <div>
                 <label className="label">GST Number</label>
-                <input {...sellerForm.register('gstNumber')} className="input" />
+                <input {...sellerForm.register('gstNumber')} onChange={(e) => sellerForm.setValue('gstNumber', e.target.value.toUpperCase())} className="input" />
+                {sellerForm.formState.errors.gstNumber && <p className="error-msg">{sellerForm.formState.errors.gstNumber.message}</p>}
               </div>
               <div>
                 <label className="label">PAN Number</label>
-                <input {...sellerForm.register('panNumber')} className="input" />
+                <input {...sellerForm.register('panNumber')} onChange={(e) => sellerForm.setValue('panNumber', e.target.value.toUpperCase())} className="input" />
+                {sellerForm.formState.errors.panNumber && <p className="error-msg">{sellerForm.formState.errors.panNumber.message}</p>}
               </div>
             </div>
 
@@ -281,7 +284,12 @@ export function ProfilePage() {
               </div>
               <div>
                 <label className="label">State *</label>
-                <input {...sellerForm.register('state')} className="input" />
+                <select {...sellerForm.register('state')} className="input">
+                  <option value="">Select state/UT</option>
+                  {INDIAN_STATES_AND_UTS.map((state) => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
                 {sellerForm.formState.errors.state && <p className="error-msg">{sellerForm.formState.errors.state.message}</p>}
               </div>
               <div>
@@ -315,7 +323,12 @@ export function ProfilePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Bank Name *</label>
-                <input {...sellerForm.register('bankName')} className="input" />
+                <select {...sellerForm.register('bankName')} className="input">
+                  <option value="">Select bank</option>
+                  {BANK_OPTIONS.map((bank) => (
+                    <option key={bank} value={bank}>{bank}</option>
+                  ))}
+                </select>
                 {sellerForm.formState.errors.bankName && <p className="error-msg">{sellerForm.formState.errors.bankName.message}</p>}
               </div>
               <div>
@@ -325,7 +338,7 @@ export function ProfilePage() {
               </div>
               <div>
                 <label className="label">IFSC Code *</label>
-                <input {...sellerForm.register('bankIfscCode')} className="input" />
+                <input {...sellerForm.register('bankIfscCode')} onChange={(e) => sellerForm.setValue('bankIfscCode', e.target.value.toUpperCase())} className="input" />
                 {sellerForm.formState.errors.bankIfscCode && <p className="error-msg">{sellerForm.formState.errors.bankIfscCode.message}</p>}
               </div>
             </div>

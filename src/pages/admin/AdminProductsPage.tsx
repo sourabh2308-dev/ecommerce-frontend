@@ -9,6 +9,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { Modal } from '@/components/Modal'
 import toast from 'react-hot-toast'
 import type { Product } from '@/types'
+import { toProductId, toSellerId } from '@/utils/displayIds'
 
 const parseImages = (raw?: string): string[] =>
   raw ? raw.split(';').map(s => s.trim()).filter(Boolean) : []
@@ -71,7 +72,7 @@ function ProductDetailModal({ product, onClose, onApprove, onBlock, onUnblock }:
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
             <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
-            <span className="text-xs font-mono text-gray-400">UUID: {product.uuid}</span>
+            <span className="text-xs text-gray-500">Product ID: {toProductId(product.uuid)}</span>
           </div>
           <StatusBadge status={product.status} />
         </div>
@@ -125,8 +126,8 @@ function ProductDetailModal({ product, onClose, onApprove, onBlock, onUnblock }:
             <User className="w-4 h-4 text-violet-600" />
           </div>
           <div>
-            <p className="text-xs text-gray-500">Seller UUID</p>
-            <p className="font-mono text-xs text-gray-700">{product.sellerUuid}</p>
+            <p className="text-xs text-gray-500">Seller ID</p>
+            <p className="text-xs text-gray-700">{toSellerId(product.sellerUuid)}</p>
           </div>
         </div>
 
@@ -259,7 +260,7 @@ export function AdminProductsPage() {
                         </div>
                         <div>
                           <p className="font-medium text-gray-900 truncate max-w-[180px]">{p.name}</p>
-                          <p className="text-xs text-gray-400 font-mono">{p.uuid.slice(0, 8)}</p>
+                          <p className="text-xs text-gray-500">{toProductId(p.uuid)}</p>
                         </div>
                         {imgCount > 1 && (
                           <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">{imgCount} imgs</span>

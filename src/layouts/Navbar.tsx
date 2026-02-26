@@ -71,7 +71,7 @@ export function Navbar() {
               )}
             </div>
             <div className="flex flex-col leading-none">
-              <span className="font-bold text-gray-900 text-base tracking-tight">ShopHub</span>
+              <span className="font-bold text-gray-900 text-base tracking-tight">SourHub</span>
               {role && <span className="text-[10px] text-gray-400 leading-none capitalize">{role.toLowerCase()} portal</span>}
             </div>
           </Link>

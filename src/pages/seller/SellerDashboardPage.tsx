@@ -1,9 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
-import { DollarSign, TrendingUp, Clock, ShoppingBag, ArrowUpRight } from 'lucide-react'
+import { useQuery } from '@tantml:react-query'
+import { DollarSign, TrendingUp, Clock, ShoppingBag, ArrowUpRight, Package, Truck, RotateCcw } from 'lucide-react'
 import * as paymentsApi from '@/api/payments'
+import * as dashboardsApi from '@/api/dashboards'
 import { Spinner } from '@/components/Spinner'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { StatusBadge } from '@/components/StatusBadge'
+import { toOrderId, toTransactionNo } from '@/utils/displayIds'
 
 function StatCard({ icon: Icon, label, value, color, sub }: { icon: React.ElementType; label: string; value: string; color: string; sub?: string }) {
   return (
@@ -26,12 +28,17 @@ export function SellerDashboardPage() {
     queryFn: paymentsApi.getSellerDashboard,
   })
 
+  const { data: orderDashboard, isLoading: orderLoading } = useQuery({
+    queryKey: ['seller-order-dashboard'],
+    queryFn: dashboardsApi.getSellerDashboard,
+  })
+
   const { data: payments, isLoading: loadingPay } = useQuery({
     queryKey: ['seller-payments'],
     queryFn: () => paymentsApi.getSellerPayments({ size: 10 }),
   })
 
-  if (loadingDash) return <Spinner message="Loading dashboard…" />
+  if (loadingDash || orderLoading) return <Spinner message="Loading dashboard…" />
   if (dashErr || !dashboard) return <ErrorMessage message="Failed to load dashboard" />
 
   const fmt = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -40,6 +47,22 @@ export function SellerDashboardPage() {
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Seller Dashboard</h1>
 
+      {/* Order Metrics */}
+      {orderDashboard && (
+        <div className="mb-6">
+          <h2 className="font-semibold text-gray-700 mb-4">Order Metrics</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <StatCard icon={Package} label="Total Orders" value={String(orderDashboard.totalOrders)} color="bg-blue-500" />
+            <StatCard icon={Clock} label="Pending Orders" value={String(orderDashboard.pendingOrders)} color="bg-yellow-500" />
+            <StatCard icon={Truck} label="Delivered Orders" value={String(orderDashboard.deliveredOrders)} color="bg-green-500" />
+            <StatCard icon={RotateCcw} label="Returned Orders" value={String(orderDashboard.returnedOrders)} color="bg-red-500" />
+            <StatCard icon={DollarSign} label="Total Revenue" value={fmt(orderDashboard.totalRevenue)} color="bg-emerald-500" />
+          </div>
+        </div>
+      )}
+
+      {/* Payment Metrics */}
+      <h2 className="font-semibold text-gray-700 mb-4">Payment Metrics</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard icon={DollarSign} label="Total Earnings" value={fmt(dashboard.totalEarnings)} color="bg-green-500" />
         <StatCard icon={Clock} label="Pending Payouts" value={fmt(dashboard.pendingPayouts)} color="bg-yellow-500" />
@@ -61,6 +84,7 @@ export function SellerDashboardPage() {
             <table className="w-full text-sm">
               <thead className="text-gray-500 text-xs uppercase bg-gray-50">
                 <tr>
+                  <th className="px-5 py-3 text-left">Transaction No.</th>
                   <th className="px-5 py-3 text-left">Order</th>
                   <th className="px-5 py-3 text-left">Amount</th>
                   <th className="px-5 py-3 text-left">Status</th>
@@ -74,7 +98,8 @@ export function SellerDashboardPage() {
                   const myPayout = mySplits.reduce((s, sp) => s + sp.sellerPayout, 0)
                   return (
                     <tr key={p.uuid} className="hover:bg-gray-50">
-                      <td className="px-5 py-3 font-mono text-xs">{p.orderUuid.slice(0, 8)}…</td>
+                      <td className="px-5 py-3 text-xs text-gray-500">{toTransactionNo(p.uuid)}</td>
+                      <td className="px-5 py-3 text-xs text-gray-500">{toOrderId(p.orderUuid)}</td>
                       <td className="px-5 py-3 font-medium">{fmt(p.amount)}</td>
                       <td className="px-5 py-3"><StatusBadge status={p.status} /></td>
                       <td className="px-5 py-3 font-semibold text-green-600 flex items-center gap-1">

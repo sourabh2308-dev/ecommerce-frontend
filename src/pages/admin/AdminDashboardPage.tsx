@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { DollarSign, TrendingUp, Truck, Users, ShoppingBag, PieChart } from 'lucide-react'
+import { DollarSign, TrendingUp, Truck, Users, ShoppingBag, PieChart, Package, XCircle, RotateCcw } from 'lucide-react'
 import * as paymentsApi from '@/api/payments'
+import * as dashboardsApi from '@/api/dashboards'
 import { Spinner } from '@/components/Spinner'
 import { ErrorMessage } from '@/components/ErrorMessage'
 
@@ -25,7 +26,12 @@ export function AdminDashboardPage() {
     queryFn: paymentsApi.getAdminDashboard,
   })
 
-  if (isLoading) return <Spinner message="Loading dashboard…" />
+  const { data: orderDashboard, isLoading: orderLoading } = useQuery({
+    queryKey: ['admin-order-dashboard'],
+    queryFn: dashboardsApi.getAdminDashboard,
+  })
+
+  if (isLoading || orderLoading) return <Spinner message="Loading dashboard…" />
   if (error || !dashboard) return <ErrorMessage message="Failed to load dashboard" />
 
   const fmt = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -42,6 +48,23 @@ export function AdminDashboardPage() {
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Admin Dashboard</h1>
 
+      {/* Order Metrics */}
+      {orderDashboard && (
+        <div className="mb-8">
+          <h2 className="font-semibold text-gray-700 mb-4">Order Metrics</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <StatCard icon={Package} label="Total Orders" value={String(orderDashboard.totalOrders)} color="bg-blue-500" />
+            <StatCard icon={ShoppingBag} label="Confirmed Orders" value={String(orderDashboard.confirmedOrders)} color="bg-green-500" />
+            <StatCard icon={Truck} label="Delivered Orders" value={String(orderDashboard.deliveredOrders)} color="bg-emerald-500" />
+            <StatCard icon={XCircle} label="Cancelled Orders" value={String(orderDashboard.cancelledOrders)} color="bg-red-500" />
+            <StatCard icon={RotateCcw} label="Return Requests" value={String(orderDashboard.returnRequests)} color="bg-amber-500" />
+            <StatCard icon={DollarSign} label="Total Revenue" value={fmt(orderDashboard.totalRevenue)} color="bg-indigo-500" />
+          </div>
+        </div>
+      )}
+
+      {/* Payment Metrics */}
+      <h2 className="font-semibold text-gray-700 mb-4">Payment & Revenue Metrics</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <StatCard icon={DollarSign} label="Gross Revenue" value={fmt(dashboard.totalGrossRevenue)} color="bg-emerald-500" />
         <StatCard icon={TrendingUp} label="Platform Earnings" value={fmt(dashboard.totalPlatformEarnings)} color="bg-blue-500" sub={`${((dashboard.totalPlatformEarnings / gross) * 100).toFixed(1)}% of gross`} />

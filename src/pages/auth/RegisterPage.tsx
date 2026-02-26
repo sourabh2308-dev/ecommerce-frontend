@@ -32,9 +32,10 @@ export function RegisterPage() {
   const onSubmit = async (data: Form) => {
     setLoading(true)
     try {
-      await authApi.register(data)
+      const normalized = { ...data, email: data.email.trim().toLowerCase() }
+      await authApi.register(normalized)
       toast.success('Account created! Please verify your email.')
-      navigate(`/verify-otp?email=${encodeURIComponent(data.email)}&role=${data.role}`)
+      navigate(`/verify-otp?email=${encodeURIComponent(normalized.email)}&role=${data.role}`)
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const responseData = err.response?.data as {
@@ -70,7 +71,7 @@ export function RegisterPage() {
             <Package className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Create account</h1>
-          <p className="text-gray-500 text-sm mt-1">Join ShopHub today</p>
+          <p className="text-gray-500 text-sm mt-1">Join SourHub today</p>
         </div>
 
         {/* Role toggle */}

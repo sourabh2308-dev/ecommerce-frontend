@@ -9,33 +9,71 @@ import type { OrderStatus } from '@/types'
 import { useState } from 'react'
 import { Modal } from '@/components/Modal'
 import { MapPin } from 'lucide-react'
+import { toOrderId, toProductId } from '@/utils/displayIds'
+import { AxiosError } from 'axios'
 
-const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  CREATED: 'CONFIRMED',
-  CONFIRMED: 'SHIPPED',
-  SHIPPED: 'DELIVERED',
-}
+type SellerAction = { status: OrderStatus; label: string; kind?: 'outline' | 'danger' }
 
-const ACTION_LABELS: Partial<Record<OrderStatus, string>> = {
-  CREATED: 'Confirm Order',
-  CONFIRMED: 'Mark Shipped',
-  SHIPPED: 'Mark Delivered',
+const getSellerActions = (status: OrderStatus, returnType?: 'REFUND' | 'EXCHANGE'): SellerAction[] => {
+  switch (status) {
+    case 'CREATED':
+      return [{ status: 'CONFIRMED', label: 'Confirm Order' }]
+    case 'CONFIRMED':
+      return [{ status: 'SHIPPED', label: 'Mark Shipped' }]
+    case 'SHIPPED':
+      return [{ status: 'DELIVERED', label: 'Mark Delivered' }]
+    case 'RETURN_REQUESTED':
+      return [
+        { status: 'PICKUP_SCHEDULED', label: 'Schedule Pickup' },
+        { status: 'RETURN_REJECTED', label: 'Reject Return', kind: 'danger' },
+      ]
+    case 'PICKUP_SCHEDULED':
+      return [{ status: 'PICKED_UP', label: 'Mark Picked Up' }]
+    case 'PICKED_UP':
+      return [{ status: 'RETURN_RECEIVED', label: 'Mark Received Back' }]
+    case 'RETURN_RECEIVED':
+      return [
+        {
+          status: returnType === 'EXCHANGE' ? 'EXCHANGE_ISSUED' : 'REFUND_ISSUED',
+          label: returnType === 'EXCHANGE' ? 'Issue Exchange' : 'Issue Refund',
+        },
+      ]
+    default:
+      return []
+  }
 }
 
 export function SellerOrdersPage() {
   useAuthStore()
   const qc = useQueryClient()
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null)
+  const [updatingOrderUuid, setUpdatingOrderUuid] = useState<string | null>(null)
 
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ['seller-orders'],
     queryFn: ordersApi.getSellerOrders,
+    retry: (failureCount, err) => {
+      const status = (err as AxiosError)?.response?.status
+      if (status === 503 && failureCount < 5) return true
+      return failureCount < 2
+    },
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
   })
 
   const updateMut = useMutation({
-    mutationFn: ({ uuid, status }: { uuid: string; status: string }) => ordersApi.updateOrderStatus(uuid, status),
+    mutationFn: async ({ uuid, status }: { uuid: string; status: string }) => {
+      setUpdatingOrderUuid(uuid)
+      return ordersApi.updateOrderStatus(uuid, status)
+    },
     onSuccess: () => { toast.success('Order updated'); qc.invalidateQueries({ queryKey: ['seller-orders'] }) },
-    onError: () => toast.error('Failed to update order'),
+    onError: (err: unknown) => {
+      const message =
+        (err as AxiosError<{ message?: string }>)?.response?.data?.message ||
+        (err as Error)?.message ||
+        'Failed to update order'
+      toast.error(message)
+    },
+    onSettled: () => setUpdatingOrderUuid(null),
   })
 
   const detail = orders?.find(o => o.uuid === selectedOrder)
@@ -63,29 +101,37 @@ export function SellerOrdersPage() {
             </thead>
             <tbody className="divide-y">
               {orders.map((order) => {
-                const next = NEXT_STATUS[order.status as OrderStatus]
-                const label = ACTION_LABELS[order.status as OrderStatus]
+                const actions = getSellerActions(order.status as OrderStatus, order.returnType)
                 return (
                   <tr key={order.uuid} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <button onClick={() => setSelectedOrder(order.uuid)} className="font-mono text-xs text-blue-600 hover:underline">
-                        #{order.uuid.slice(0, 8).toUpperCase()}
+                      <button onClick={() => setSelectedOrder(order.uuid)} className="text-xs text-blue-600 hover:underline">
+                        {toOrderId(order.uuid)}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{order.items.length} item{order.items.length !== 1 ? 's' : ''}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <div>{order.items.length} item{order.items.length !== 1 ? 's' : ''}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {order.items.slice(0, 2).map((item) => item.productName || toProductId(item.productUuid)).join(', ')}
+                        {order.items.length > 2 ? ` +${order.items.length - 2} more` : ''}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 font-semibold">₹{order.totalAmount.toFixed(2)}</td>
                     <td className="px-4 py-3"><StatusBadge status={order.status} /></td>
                     <td className="px-4 py-3"><StatusBadge status={order.paymentStatus} /></td>
                     <td className="px-4 py-3">
-                      {next && order.paymentStatus === 'SUCCESS' && (
-                        <button
-                          onClick={() => updateMut.mutate({ uuid: order.uuid, status: next })}
-                          disabled={updateMut.isPending}
-                          className="btn-primary text-xs py-1.5 px-3"
-                        >
-                          {label}
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {actions.map((action) => (
+                          <button
+                            key={action.status}
+                            onClick={() => updateMut.mutate({ uuid: order.uuid, status: action.status })}
+                            disabled={updateMut.isPending && updatingOrderUuid === order.uuid}
+                            className={action.kind === 'danger' ? 'btn-danger text-xs py-1.5 px-3' : 'btn-primary text-xs py-1.5 px-3'}
+                          >
+                            {action.label}
+                          </button>
+                        ))}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -100,7 +146,7 @@ export function SellerOrdersPage() {
         {detail && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-sm text-gray-500">#{detail.uuid.slice(0, 12)}</span>
+              <span className="text-sm text-gray-500">Order ID: {toOrderId(detail.uuid)}</span>
               <div className="flex gap-2">
                 <StatusBadge status={detail.status} />
                 <StatusBadge status={detail.paymentStatus} />
@@ -124,26 +170,60 @@ export function SellerOrdersPage() {
               <h3 className="font-semibold text-sm text-gray-900 mb-2">Items</h3>
               <div className="divide-y">
                 {detail.items.map((item) => (
-                  <div key={item.productUuid} className="py-2 flex justify-between text-sm">
-                    <span className="text-gray-600 font-mono text-xs">#{item.productUuid.slice(0, 8)} ×{item.quantity}</span>
+                  <div key={item.productUuid} className="py-2 flex justify-between gap-4 text-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center text-xs text-gray-400">
+                        {item.productImageUrl ? (
+                          <img src={item.productImageUrl.split(';')[0].trim()} alt={item.productName || 'Product'} className="w-full h-full object-cover" />
+                        ) : (
+                          'IMG'
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800">{item.productName || 'Product'}</p>
+                        <p className="text-gray-600 text-xs">Product ID: {toProductId(item.productUuid)}</p>
+                        <p className="text-gray-500 text-xs">Category: {item.productCategory || 'N/A'} • Qty: {item.quantity}</p>
+                      </div>
+                    </div>
                     <span className="font-semibold">₹{(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
             </div>
 
+            {(detail.returnType || detail.returnReason) && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h3 className="font-semibold text-sm text-gray-900 mb-2">Return / Exchange Details</h3>
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium">Type:</span> {detail.returnType ?? '-'}
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  <span className="font-medium">Reason:</span> {detail.returnReason ?? '-'}
+                </p>
+              </div>
+            )}
+
             <div className="flex justify-between font-bold text-gray-900 pt-2 border-t">
               <span>Total</span>
               <span>₹{detail.totalAmount.toFixed(2)}</span>
             </div>
 
-            {NEXT_STATUS[detail.status as OrderStatus] && detail.paymentStatus === 'SUCCESS' && (
-              <button
-                onClick={() => { updateMut.mutate({ uuid: detail.uuid, status: NEXT_STATUS[detail.status as OrderStatus]! }); setSelectedOrder(null) }}
-                className="btn-primary w-full py-2"
-              >
-                {ACTION_LABELS[detail.status as OrderStatus]}
-              </button>
+            {getSellerActions(detail.status as OrderStatus, detail.returnType).length > 0 && (
+              <div className="flex flex-col gap-2">
+                {getSellerActions(detail.status as OrderStatus, detail.returnType).map((action) => (
+                  <button
+                    key={action.status}
+                    onClick={() => {
+                      updateMut.mutate({ uuid: detail.uuid, status: action.status })
+                      setSelectedOrder(null)
+                    }}
+                    disabled={updateMut.isPending && updatingOrderUuid === detail.uuid}
+                    className={action.kind === 'danger' ? 'btn-danger w-full py-2' : 'btn-primary w-full py-2'}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         )}

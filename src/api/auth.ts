@@ -2,7 +2,7 @@ import api from './client'
 import type { LoginRequest, RegisterRequest, AuthResponse } from '@/types'
 
 export const login = (data: LoginRequest) =>
-  api.post<AuthResponse>('/auth/login', data).then((r) => r.data)
+  api.post<AuthResponse>('/auth/login', { ...data, email: data.email.trim().toLowerCase() }).then((r) => r.data)
 
 export const register = (data: RegisterRequest) => {
   const parts = data.name.trim().split(/\s+/)
@@ -13,7 +13,7 @@ export const register = (data: RegisterRequest) => {
     .post<{ success: boolean; message: string }>('/user/register', {
       firstName,
       lastName,
-      email: data.email,
+      email: data.email.trim().toLowerCase(),
       password: data.password,
       role: data.role,
     })
@@ -21,10 +21,10 @@ export const register = (data: RegisterRequest) => {
 }
 
 export const verifyOtp = (email: string, otp: string) =>
-  api.post<{ success: boolean; message: string }>('/user/verify-otp', { email, otpCode: otp }).then((r) => r.data)
+  api.post<{ success: boolean; message: string }>('/user/verify-otp', { email: email.trim().toLowerCase(), otpCode: otp }).then((r) => r.data)
 
 export const resendOtp = (email: string) =>
-  api.post<{ success: boolean; message: string }>(`/user/resend-otp?email=${encodeURIComponent(email)}`).then((r) => r.data)
+  api.post<{ success: boolean; message: string }>(`/user/resend-otp?email=${encodeURIComponent(email.trim().toLowerCase())}`).then((r) => r.data)
 
 export const refreshToken = (refreshToken: string) =>
   api.post<AuthResponse>(`/auth/refresh?refreshToken=${encodeURIComponent(refreshToken)}`).then((r) => r.data)
@@ -37,3 +37,9 @@ export const logout = () => {
     .post(`/auth/logout?refreshToken=${encodeURIComponent(refreshToken)}`)
     .then((r) => r.data)
 }
+
+export const forgotPassword = (email: string) =>
+  api.post<{ success: boolean; message: string }>('/user/forgot-password', { email: email.trim().toLowerCase() }).then((r) => r.data)
+
+export const resetPassword = (token: string, newPassword: string) =>
+  api.post<{ success: boolean; message: string }>('/user/reset-password', { token, newPassword }).then((r) => r.data)

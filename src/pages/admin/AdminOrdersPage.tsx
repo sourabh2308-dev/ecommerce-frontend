@@ -5,6 +5,7 @@ import { Spinner } from '@/components/Spinner'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import toast from 'react-hot-toast'
 import type { OrderStatus } from '@/types'
+import { toCustomerId, toOrderId } from '@/utils/displayIds'
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   CONFIRMED: 'SHIPPED',
@@ -54,8 +55,8 @@ export function AdminOrdersPage() {
                 const next = NEXT_STATUS[order.status as OrderStatus]
                 return (
                   <tr key={order.uuid} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">#{order.uuid.slice(0, 8).toUpperCase()}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{order.buyerUuid.slice(0, 8)}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{toOrderId(order.uuid)}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{toCustomerId(order.buyerUuid)}</td>
                     <td className="px-4 py-3 text-gray-600">{order.items.length}</td>
                     <td className="px-4 py-3 font-semibold">₹{order.totalAmount.toFixed(2)}</td>
                     <td className="px-4 py-3"><StatusBadge status={order.status} /></td>

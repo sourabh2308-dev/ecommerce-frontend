@@ -25,7 +25,7 @@ export function LoginPage() {
   const onSubmit = async (data: Form) => {
     setLoading(true)
     try {
-      const res = await authApi.login(data)
+      const res = await authApi.login({ ...data, email: data.email.trim().toLowerCase() })
       setTokens(res.accessToken, res.refreshToken)
       toast.success('Welcome back!')
       // Redirect based on role stored after setTokens
@@ -69,7 +69,7 @@ export function LoginPage() {
             <Package className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-gray-500 text-sm mt-1">Sign in to your ShopHub account</p>
+          <p className="text-gray-500 text-sm mt-1">Sign in to your SourHub account</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -82,6 +82,11 @@ export function LoginPage() {
             <label className="label">Password</label>
             <input {...register('password')} type="password" className="input" placeholder="••••••••" />
             {errors.password && <p className="error-msg">{errors.password.message}</p>}
+            <div className="text-right mt-1">
+              <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
             {loading ? 'Signing in…' : 'Sign in'}

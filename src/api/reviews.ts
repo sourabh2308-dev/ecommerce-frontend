@@ -19,3 +19,9 @@ export const deleteReview = (uuid: string) =>
 export const getMyReviews = () =>
   api.get<PaginatedResponse<Review>>('/review/me').then((r) => r.data.content)
 
+export const voteReview = (uuid: string, helpful: boolean) =>
+  api.post<string>(`/review/${uuid}/vote`, null, { params: { helpful } }).then((r) => r.data)
+
+export const addReviewImage = (uuid: string, imageUrl: string) =>
+  api.post<string>(`/review/${uuid}/images`, null, { params: { imageUrl } }).then((r) => r.data)
+

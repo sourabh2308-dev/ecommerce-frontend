@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { ShoppingCart, Minus, Plus, ArrowLeft, ImageOff, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ShoppingCart, Minus, Plus, ArrowLeft, ImageOff, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, BadgeCheck } from 'lucide-react'
 import * as productsApi from '@/api/products'
 import * as reviewsApi from '@/api/reviews'
 import { StarRating } from '@/components/StarRating'
@@ -19,6 +19,7 @@ const parseImages = (raw?: string): string[] =>
 export function ProductDetailPage() {
   const { uuid } = useParams<{ uuid: string }>()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const addItem = useCartStore((s) => s.addItem)
   const { isAuthenticated, role } = useAuthStore()
   const [qty, setQty] = useState(1)
@@ -37,6 +38,20 @@ export function ProductDetailPage() {
     enabled: !!uuid,
   })
 
+  const voteMut = useMutation({
+    mutationFn: ({ reviewUuid, helpful }: { reviewUuid: string; helpful: boolean }) =>
+      reviewsApi.voteReview(reviewUuid, helpful),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['reviews', uuid] })
+    },
+    onError: () => toast.error('Failed to record vote'),
+  })
+
+  const reviewCount = reviews?.length ?? (product?.totalReviews ?? 0)
+  const averageRating = reviews && reviews.length > 0
+    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+    : (product?.averageRating ?? 0)
+
   if (isLoading) return <Spinner message="Loading product…" />
   if (error || !product) return <ErrorMessage message="Product not found" />
 
@@ -52,6 +67,14 @@ export function ProductDetailPage() {
 
   const handleImgError = (idx: number) => {
     setImgErrors(prev => new Set(prev).add(idx))
+  }
+
+  const handleVote = (reviewUuid: string, helpful: boolean) => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+    voteMut.mutate({ reviewUuid, helpful })
   }
 
   return (
@@ -127,8 +150,9 @@ export function ProductDetailPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <StarRating value={Math.round(product.averageRating ?? 0)} />
-            <span className="text-sm text-gray-500">({product.totalReviews ?? 0} reviews)</span>
+            <StarRating value={Math.round(averageRating)} />
+            <span className="text-sm text-gray-600 font-medium">{averageRating.toFixed(1)}</span>
+            <span className="text-sm text-gray-500">({reviewCount} reviews)</span>
             <StatusBadge status={product.status} />
           </div>
 
@@ -173,8 +197,41 @@ export function ProductDetailPage() {
               <div key={r.uuid} className="card p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <StarRating value={r.rating} size="sm" />
+                    <div className="flex items-center gap-2">
+                      <StarRating value={r.rating} size="sm" />
+                      {r.verifiedPurchase && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                          <BadgeCheck className="w-3 h-3" /> Verified
+                        </span>
+                      )}
+                    </div>
                     <p className="text-gray-700 mt-2 text-sm leading-relaxed">{r.comment}</p>
+                    {r.imageUrls && r.imageUrls.length > 0 && (
+                      <div className="mt-3 flex gap-2 flex-wrap">
+                        {r.imageUrls.map((url, idx) => (
+                          <img
+                            key={`${r.uuid}-${idx}`}
+                            src={url}
+                            alt="Review"
+                            className="w-16 h-16 rounded-lg object-cover border border-gray-100"
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-3 flex items-center gap-3">
+                      <button
+                        onClick={() => handleVote(r.uuid, true)}
+                        className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-green-700"
+                      >
+                        <ThumbsUp className="w-4 h-4" /> Helpful {r.helpfulCount ?? 0}
+                      </button>
+                      <button
+                        onClick={() => handleVote(r.uuid, false)}
+                        className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-red-700"
+                      >
+                        <ThumbsDown className="w-4 h-4" /> Not helpful {r.notHelpfulCount ?? 0}
+                      </button>
+                    </div>
                   </div>
                   <p className="text-xs text-gray-400 shrink-0 mt-0.5">
                     {format(new Date(r.createdAt), 'MMM d, yyyy')}

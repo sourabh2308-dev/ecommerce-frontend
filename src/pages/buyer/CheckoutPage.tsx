@@ -5,11 +5,18 @@ import { useCartStore } from '@/store/cartStore'
 import * as ordersApi from '@/api/orders'
 import api from '@/api/client'
 import toast from 'react-hot-toast'
+import { BANK_OPTIONS, EMI_PLANS, INDIAN_STATES_AND_UTS, UPI_OPTIONS } from '@/constants/formOptions'
 
 export function CheckoutPage() {
   const { items, total, clear } = useCartStore()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'UPI' | 'NET_BANKING' | 'EMI'>('CARD')
+  const [upiMethod, setUpiMethod] = useState<(typeof UPI_OPTIONS)[number]>('QR')
+  const [emiMonths, setEmiMonths] = useState<number>(6)
+  const [selectedBank, setSelectedBank] = useState<string>('')
+  const [upiHandle, setUpiHandle] = useState('')
+  const [upiPhone, setUpiPhone] = useState('')
   const [card, setCard] = useState({ number: '', expiry: '', cvv: '' })
   const [address, setAddress] = useState({
     shippingName: '',
@@ -25,8 +32,35 @@ export function CheckoutPage() {
     return null
   }
 
+  const emiPlan = EMI_PLANS.find((p) => p.months === emiMonths) ?? EMI_PLANS[0]
+  const payableAmount = paymentMethod === 'EMI'
+    ? total() * (1 + emiPlan.interestPercent / 100)
+    : total()
+
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!/^\d{10}$/.test(address.shippingPhone)) {
+      toast.error('Phone number must be 10 digits')
+      return
+    }
+    if (!/^\d{6}$/.test(address.shippingPincode)) {
+      toast.error('Pincode must be 6 digits')
+      return
+    }
+    if (paymentMethod === 'NET_BANKING' && !selectedBank) {
+      toast.error('Please select a bank for net banking')
+      return
+    }
+    if (paymentMethod === 'UPI' && upiMethod === 'UPI_ID' && !/^[\w.-]+@[\w.-]+$/.test(upiHandle)) {
+      toast.error('Please enter a valid UPI ID')
+      return
+    }
+    if (paymentMethod === 'UPI' && upiMethod === 'PHONE' && !/^\d{10}$/.test(upiPhone)) {
+      toast.error('UPI phone number must be 10 digits')
+      return
+    }
+
     setLoading(true)
     try {
       const order = await ordersApi.placeOrder({
@@ -34,7 +68,20 @@ export function CheckoutPage() {
         ...address,
       })
 
-      const payRes = await api.post('/payment', { orderUuid: order.uuid, amount: order.totalAmount, buyerUuid: order.buyerUuid })
+      const payRes = await api.post('/payment', {
+        orderUuid: order.uuid,
+        amount: payableAmount,
+        buyerUuid: order.buyerUuid,
+        paymentMethod,
+        paymentMeta: {
+          upiMethod,
+          upiHandle,
+          upiPhone,
+          bankName: selectedBank,
+          emiMonths,
+          emiInterestPercent: emiPlan.interestPercent,
+        },
+      })
 
       clear()
       if (typeof payRes.data === 'string' && payRes.data.includes('FAILED')) {
@@ -91,7 +138,12 @@ export function CheckoutPage() {
                   </div>
                   <div>
                     <label className="label">State</label>
-                    <input value={address.shippingState} onChange={(e) => setAddress({ ...address, shippingState: e.target.value })} className="input" placeholder="Maharashtra" required />
+                    <select value={address.shippingState} onChange={(e) => setAddress({ ...address, shippingState: e.target.value })} className="input" required>
+                      <option value="">Select state/UT</option>
+                      {INDIAN_STATES_AND_UTS.map((state) => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="label">Pincode</label>
@@ -109,6 +161,71 @@ export function CheckoutPage() {
               </div>
               <div className="flex flex-col gap-4">
                 <div>
+                  <label className="label">Payment Method</label>
+                  <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as 'CARD' | 'UPI' | 'NET_BANKING' | 'EMI')} className="input" required>
+                    <option value="CARD">Card</option>
+                    <option value="UPI">UPI</option>
+                    <option value="NET_BANKING">Net Banking</option>
+                    <option value="EMI">EMI</option>
+                  </select>
+                </div>
+
+                {paymentMethod === 'UPI' && (
+                  <>
+                    <div>
+                      <label className="label">UPI Option</label>
+                      <select value={upiMethod} onChange={(e) => setUpiMethod(e.target.value as (typeof UPI_OPTIONS)[number])} className="input" required>
+                        {UPI_OPTIONS.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {upiMethod === 'UPI_ID' && (
+                      <div>
+                        <label className="label">UPI ID</label>
+                        <input value={upiHandle} onChange={(e) => setUpiHandle(e.target.value)} className="input" placeholder="name@bank" required />
+                      </div>
+                    )}
+                    {upiMethod === 'PHONE' && (
+                      <div>
+                        <label className="label">UPI Phone Number</label>
+                        <input value={upiPhone} onChange={(e) => setUpiPhone(e.target.value)} className="input" placeholder="9876543210" maxLength={10} required />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {paymentMethod === 'NET_BANKING' && (
+                  <div>
+                    <label className="label">Bank</label>
+                    <select value={selectedBank} onChange={(e) => setSelectedBank(e.target.value)} className="input" required>
+                      <option value="">Select bank</option>
+                      {BANK_OPTIONS.map((bank) => (
+                        <option key={bank} value={bank}>{bank}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {paymentMethod === 'EMI' && (
+                  <>
+                    <div>
+                      <label className="label">EMI Tenure</label>
+                      <select value={emiMonths} onChange={(e) => setEmiMonths(Number(e.target.value))} className="input" required>
+                        {EMI_PLANS.map((plan) => (
+                          <option key={plan.months} value={plan.months}>
+                            {plan.months} months ({plan.interestPercent}% interest)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className="text-xs text-gray-500">Total with EMI interest: ₹{payableAmount.toFixed(2)}</p>
+                  </>
+                )}
+
+                {paymentMethod === 'CARD' && (
+                  <>
+                <div>
                   <label className="label">Card Number</label>
                   <input value={card.number} onChange={(e) => setCard({ ...card, number: e.target.value })} className="input" placeholder="4242 4242 4242 4242" maxLength={19} required />
                 </div>
@@ -122,6 +239,8 @@ export function CheckoutPage() {
                     <input value={card.cvv} onChange={(e) => setCard({ ...card, cvv: e.target.value })} className="input" placeholder="•••" maxLength={3} type="password" required />
                   </div>
                 </div>
+                  </>
+                )}
                 <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg mt-1">
                   <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
                   <span>This is a demo. No real payment is processed.</span>
@@ -147,10 +266,10 @@ export function CheckoutPage() {
             </div>
             <div className="border-t pt-3 flex justify-between font-bold text-gray-900 text-lg mb-4">
               <span>Total</span>
-              <span>₹{total().toFixed(2)}</span>
+              <span>₹{payableAmount.toFixed(2)}</span>
             </div>
             <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-base">
-              {loading ? 'Processing…' : `Pay ₹${total().toFixed(2)}`}
+              {loading ? 'Processing…' : `Pay ₹${payableAmount.toFixed(2)}`}
             </button>
           </div>
         </div>
