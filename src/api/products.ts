@@ -43,6 +43,9 @@ export const getMyProducts = () =>
 export const getAllCategories = () =>
   api.get<Category[]>('/product/categories').then((r) => r.data)
 
+export const reorderCategories = (uuids: string[]) =>
+  api.put('/product/categories/reorder', uuids).then((r) => r.data)
+
 export const getCategoryByUuid = (uuid: string) =>
   api.get<Category>(`/product/categories/${uuid}`).then((r) => r.data)
 
@@ -88,36 +91,39 @@ export const deleteVariant = (productUuid: string, variantUuid: string) =>
   api.delete(`/product/${productUuid}/variants/${variantUuid}`).then((r) => r.data)
 
 // ─── Inventory ────────────────────────────────────────────────────────────
-export const getStockMovements = (productUuid: string) =>
-  api.get<StockMovement[]>(`/product/inventory/${productUuid}/movements`).then((r) => r.data)
+export const restockProduct = (productUuid: string, quantity: number, reference?: string) =>
+  api.put<{ success: boolean; message: string }>(`/product/inventory/${productUuid}/restock`, { quantity, reference }).then((r) => r.data)
 
-export const addStock = (productUuid: string, quantity: number, reference?: string) =>
-  api.post<{ success: boolean; newStock: number }>(`/product/inventory/${productUuid}/add`, { quantity, reference }).then((r) => r.data)
+export const adjustProductStock = (productUuid: string, quantity: number, reference?: string) =>
+  api.put<{ success: boolean; message: string }>(`/product/inventory/${productUuid}/adjust`, { quantity, reference }).then((r) => r.data)
 
-export const removeStock = (productUuid: string, quantity: number, reference?: string) =>
-  api.post<{ success: boolean; newStock: number }>(`/product/inventory/${productUuid}/remove`, { quantity, reference }).then((r) => r.data)
+export const getProductStockHistory = (productUuid: string, page = 0, size = 20) =>
+  api.get<{ content: StockMovement[] }>(`/product/inventory/${productUuid}/history`, { params: { page, size } }).then((r) => r.data.content)
 
-export const setStock = (productUuid: string, stock: number, reference?: string) =>
-  api.put<{ success: boolean; newStock: number }>(`/product/inventory/${productUuid}/set`, { stock, reference }).then((r) => r.data)
+export const getLowStockProducts = (threshold = 10) =>
+  api.get<string[]>(`/product/inventory/low-stock`, { params: { threshold } }).then((r) => r.data)
 
 // ─── Flash Deals ──────────────────────────────────────────────────────────
 export const getActiveFlashDeals = () =>
-  api.get<FlashDeal[]>('/product/flash-deals/active').then((r) => r.data)
+  api.get<FlashDeal[]>('/product/deals/active').then((r) => r.data)
+
+export const getMyFlashDeals = () =>
+  api.get<FlashDeal[]>('/product/deals/my').then((r) => r.data)
 
 export const getAllFlashDeals = () =>
-  api.get<FlashDeal[]>('/product/flash-deals').then((r) => r.data)
+  api.get<FlashDeal[]>('/product/deals').then((r) => r.data)
 
 export const getFlashDealByUuid = (uuid: string) =>
-  api.get<FlashDeal>(`/product/flash-deals/${uuid}`).then((r) => r.data)
+  api.get<FlashDeal>(`/product/deals/${uuid}`).then((r) => r.data)
 
 export const createFlashDeal = (data: Omit<FlashDeal, 'uuid' | 'discountedPrice'>) =>
-  api.post<FlashDeal>('/product/flash-deals', data).then((r) => r.data)
+  api.post<FlashDeal>('/product/deals', data).then((r) => r.data)
 
 export const updateFlashDeal = (uuid: string, data: Partial<FlashDeal>) =>
-  api.put<FlashDeal>(`/product/flash-deals/${uuid}`, data).then((r) => r.data)
+  api.put<FlashDeal>(`/product/deals/${uuid}`, data).then((r) => r.data)
 
 export const deleteFlashDeal = (uuid: string) =>
-  api.delete(`/product/flash-deals/${uuid}`).then((r) => r.data)
+  api.delete(`/product/deals/${uuid}`).then((r) => r.data)
 
 // ─── Recommendations ──────────────────────────────────────────────────────
 export const getRecommendations = (productUuid: string) =>
@@ -126,4 +132,13 @@ export const getRecommendations = (productUuid: string) =>
 // ─── Search ───────────────────────────────────────────────────────────────
 export const searchProducts = (query: string, page = 0, size = 20) =>
   api.get<{ content: Product[] }>('/product/search', { params: { query, page, size } }).then((r) => r.data.content)
+
+export const autocompleteSearch = (query: string) =>
+  api.get<string[]>(`/product/search/autocomplete`, { params: { query } }).then((r) => r.data)
+
+export const reindexSearch = () =>
+  api.post('/product/search/reindex').then((r) => r.data)
+
+export const cursorSearch = (cursor?: string, size = 20) =>
+  api.get<{ content: Product[]; nextCursor?: string }>('/product/cursor', { params: { cursor, size } }).then((r) => r.data)
 

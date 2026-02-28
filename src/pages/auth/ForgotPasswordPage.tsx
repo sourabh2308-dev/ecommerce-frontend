@@ -11,10 +11,14 @@ export default function ForgotPasswordPage() {
   const mutation = useMutation({
     mutationFn: forgotPassword,
     onSuccess: (data) => {
-      setMessage(data.message || 'Password reset link sent to your email')
+      setMessage(data.message || 'Password reset OTP sent to your email')
+      // after showing success, navigate to reset page so user can enter OTP
+      setTimeout(() => {
+        navigate(`/reset-password?email=${encodeURIComponent(email.trim().toLowerCase())}`)
+      }, 1200)
     },
     onError: (error: any) => {
-      setMessage(error.response?.data?.message || 'Failed to send reset link')
+      setMessage(error.response?.data?.message || 'Failed to send reset OTP')
     },
   })
 
@@ -32,7 +36,7 @@ export default function ForgotPasswordPage() {
       <div className="max-w-md w-full bg-white rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold text-center mb-6">Forgot Password</h2>
         <p className="text-gray-600 text-center mb-6">
-          Enter your email address and we'll send you a link to reset your password.
+          Enter your email address and we'll send you an OTP to reset your password.
         </p>
         
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -62,7 +66,7 @@ export default function ForgotPasswordPage() {
             disabled={mutation.isPending}
             className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
           >
-            {mutation.isPending ? 'Sending...' : 'Send Reset Link'}
+            {mutation.isPending ? 'Sending...' : 'Send Reset OTP'}
           </button>
         </form>
 
@@ -73,6 +77,11 @@ export default function ForgotPasswordPage() {
           >
             Back to Login
           </button>
+          {mutation.isSuccess && (
+            <div className="mt-4 text-center text-sm text-gray-600">
+              Redirecting to reset page…
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -113,6 +113,12 @@ export function OrderDetailPage() {
     }
   }
 
+  const emailMut = useMutation({
+    mutationFn: () => ordersApi.emailInvoice(uuid!),
+    onSuccess: () => toast.success('Invoice emailed'),
+    onError: () => toast.error('Failed to send invoice'),
+  })
+
   if (isLoading) return <Spinner message="Loading order…" />
   if (error || !order) return <ErrorMessage message="Order not found" />
 
@@ -285,13 +291,22 @@ export function OrderDetailPage() {
             <div className="flex justify-between font-bold text-gray-900 text-base pt-2 border-t">
               <span>Total</span>
           {(order.status === 'DELIVERED' || order.paymentStatus === 'SUCCESS') && (
-            <button
-              onClick={handleDownloadInvoice}
-              className="btn-outline w-full py-2 text-sm mt-2 flex items-center justify-center gap-2"
-            >
-              <FileDown className="w-4 h-4" />
-              Download Invoice
-            </button>
+            <>
+              <button
+                onClick={handleDownloadInvoice}
+                className="btn-outline w-full py-2 text-sm mt-2 flex items-center justify-center gap-2"
+              >
+                <FileDown className="w-4 h-4" />
+                Download Invoice
+              </button>
+              <button
+                onClick={() => emailMut.mutate()}
+                disabled={emailMut.isPending}
+                className="btn-outline w-full py-2 text-sm mt-2 flex items-center justify-center gap-2"
+              >
+                ✉️ Email Invoice
+              </button>
+            </>
           )}
               <span>₹{order.totalAmount.toFixed(2)}</span>
             </div>

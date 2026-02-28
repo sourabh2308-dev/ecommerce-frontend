@@ -1,4 +1,4 @@
-import { useQuery } from '@tantml:react-query'
+import { useQuery } from '@tanstack/react-query'
 import { DollarSign, TrendingUp, Clock, ShoppingBag, ArrowUpRight, Package, Truck, RotateCcw } from 'lucide-react'
 import * as paymentsApi from '@/api/payments'
 import * as dashboardsApi from '@/api/dashboards'
@@ -93,9 +93,9 @@ export function SellerDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {payments.content.map((p) => {
+                {payments.content.map((p: any) => {
                   const mySplits = p.splits ?? []
-                  const myPayout = mySplits.reduce((s, sp) => s + sp.sellerPayout, 0)
+                  const myPayout = mySplits.reduce((s: number, sp: any) => s + sp.sellerPayout, 0)
                   return (
                     <tr key={p.uuid} className="hover:bg-gray-50">
                       <td className="px-5 py-3 text-xs text-gray-500">{toTransactionNo(p.uuid)}</td>

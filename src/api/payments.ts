@@ -7,5 +7,11 @@ export const getSellerPayments = (params?: { page?: number; size?: number }) =>
 export const getSellerDashboard = () =>
   api.get<SellerDashboard>('/payment/seller/dashboard').then((r) => r.data)
 
+export const getPaymentByUuid = (uuid: string) =>
+  api.get<Payment>(`/payment/${uuid}`).then((r) => r.data)
+
+export const getPaymentsByOrder = (orderUuid: string) =>
+  api.get<Payment[]>(`/payment/order/${orderUuid}`).then((r) => r.data)
+
 export const getAdminDashboard = () =>
   api.get<AdminDashboard>('/payment/admin/dashboard').then((r) => r.data)

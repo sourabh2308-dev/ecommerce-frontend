@@ -10,6 +10,12 @@ export const getMyOrders = () =>
 export const getOrder = (uuid: string) =>
   api.get<Order>(`/order/${uuid}`).then((r) => r.data)
 
+export const getOrderSubOrders = (uuid: string) =>
+  api.get<Order[]>(`/order/${uuid}/sub-orders`).then((r) => r.data)
+
+export const getGroupOrders = (groupId: string) =>
+  api.get<Order[]>(`/order/group/${groupId}`).then((r) => r.data)
+
 export const cancelOrder = (uuid: string) =>
   api.put<Order>(`/order/${uuid}/status`, null, { params: { status: 'CANCELLED' } }).then((r) => r.data)
 
@@ -71,7 +77,10 @@ export const addTrackingEvent = (orderUuid: string, status: string, location?: s
 
 // ─── Invoice ──────────────────────────────────────────────────────────────
 export const downloadInvoice = (orderUuid: string) =>
-  api.get(`/order/invoice/${orderUuid}`, { responseType: 'blob' }).then((r) => r.data)
+  api.get(`/order/${orderUuid}/invoice`, { responseType: 'blob' }).then((r) => r.data)
+
+export const emailInvoice = (orderUuid: string) =>
+  api.get(`/order/${orderUuid}/invoice/email`).then((r) => r.data)
 
 // ─── Audit Logs (Admin) ───────────────────────────────────────────────────
 export const getOrderAuditLogs = (orderUuid: string) =>

@@ -39,7 +39,13 @@ export const logout = () => {
 }
 
 export const forgotPassword = (email: string) =>
-  api.post<{ success: boolean; message: string }>('/user/forgot-password', { email: email.trim().toLowerCase() }).then((r) => r.data)
+  api.post<{ success: boolean; message: string }>('/auth/forgot-password', { email: email.trim().toLowerCase() }).then((r) => r.data)
 
-export const resetPassword = (token: string, newPassword: string) =>
-  api.post<{ success: boolean; message: string }>('/user/reset-password', { token, newPassword }).then((r) => r.data)
+export const resetPassword = (email: string, otp: string, newPassword: string) =>
+  api
+    .post<{ success: boolean; message: string }>('/auth/reset-password', {
+      email: email.trim().toLowerCase(),
+      otpCode: otp,
+      newPassword,
+    })
+    .then((r) => r.data)

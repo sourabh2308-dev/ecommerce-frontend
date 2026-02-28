@@ -1,4 +1,8 @@
 import { useState } from 'react'
+
+declare global {
+  interface Window { Razorpay: any }
+}
 import { useNavigate, Link } from 'react-router-dom'
 import { CreditCard, ShieldCheck, ArrowLeft, MapPin } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
@@ -36,6 +40,54 @@ export function CheckoutPage() {
   const payableAmount = paymentMethod === 'EMI'
     ? total() * (1 + emiPlan.interestPercent / 100)
     : total()
+
+  // helper to load Razorpay script dynamically
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true)
+        return
+      }
+      const script = document.createElement('script')
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      script.onload = () => resolve(true)
+      script.onerror = () => resolve(false)
+      document.body.appendChild(script)
+    })
+  }
+
+  const openRazorpay = async (orderId: string, amount: number, orderUuid: string) => {
+    const loaded = await loadRazorpayScript()
+    if (!loaded) {
+      toast.error('Unable to load payment gateway')
+      return
+    }
+
+    const options: any = {
+      key: import.meta.env.VITE_RAZORPAY_KEY || '',
+      amount: Math.round(amount * 100),
+      currency: 'INR',
+      order_id: orderId,
+      handler: async (response: any) => {
+        // let backend verify via webhook or explicit call
+        try {
+          await api.post('/payment/gateway/webhook', response)
+        } catch {
+          // ignore failure; webhook should also fire server-side
+        }
+        toast.success('Payment completed!')
+        navigate(`/orders/${orderUuid}`)
+      },
+      prefill: {
+        name: address.shippingName,
+        contact: address.shippingPhone,
+      },
+      notes: { orderUuid },
+      theme: { color: '#4f46e5' },
+    }
+    const rzp = new (window as any).Razorpay(options)
+    rzp.open()
+  }
 
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,12 +136,17 @@ export function CheckoutPage() {
       })
 
       clear()
+
       if (typeof payRes.data === 'string' && payRes.data.includes('FAILED')) {
         toast.error('Payment failed. You can retry from the order page.')
+        navigate(`/orders/${order.uuid}`)
+      } else if (typeof payRes.data === 'string' && payRes.data.startsWith('rzp_')) {
+        // Razorpay order id returned, start checkout
+        await openRazorpay(payRes.data, payableAmount, order.uuid)
       } else {
         toast.success('Order placed & payment successful! 🎉')
+        navigate(`/orders/${order.uuid}`)
       }
-      navigate(`/orders/${order.uuid}`)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       toast.error(msg ?? 'Failed to place order')

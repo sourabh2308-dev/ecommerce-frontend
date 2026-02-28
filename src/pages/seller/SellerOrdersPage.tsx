@@ -76,6 +76,12 @@ export function SellerOrdersPage() {
     onSettled: () => setUpdatingOrderUuid(null),
   })
 
+  const emailMut = useMutation({
+    mutationFn: async (uuid: string) => ordersApi.emailInvoice(uuid),
+    onSuccess: () => toast.success('Invoice emailed'),
+    onError: () => toast.error('Failed to email invoice'),
+  })
+
   const detail = orders?.find(o => o.uuid === selectedOrder)
 
   if (isLoading) return <Spinner message="Loading orders…" />
@@ -147,9 +153,18 @@ export function SellerOrdersPage() {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">Order ID: {toOrderId(detail.uuid)}</span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <StatusBadge status={detail.status} />
                 <StatusBadge status={detail.paymentStatus} />
+                {(detail.status === 'DELIVERED' || detail.paymentStatus === 'SUCCESS') && (
+                  <button
+                    onClick={() => emailMut.mutate(detail.uuid)}
+                    disabled={emailMut.isPending}
+                    className="btn-outline btn-xs"
+                  >
+                    ✉️ Email Invoice
+                  </button>
+                )}
               </div>
             </div>
 

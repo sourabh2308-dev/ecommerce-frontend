@@ -1,19 +1,19 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { resetPassword } from '@/api/auth'
 
 export default function ResetPasswordPage() {
-  const [searchParams] = useSearchParams()
-  const token = searchParams.get('token') || ''
+  const [email, setEmail] = useState('')
+  const [otp, setOtp] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [message, setMessage] = useState('')
   const navigate = useNavigate()
 
   const mutation = useMutation({
-    mutationFn: ({ token, newPassword }: { token: string; newPassword: string }) =>
-      resetPassword(token, newPassword),
+    mutationFn: ({ email, otp, newPassword }: { email: string; otp: string; newPassword: string }) =>
+      resetPassword(email, otp, newPassword),
     onSuccess: (data) => {
       setMessage(data.message || 'Password reset successful')
       setTimeout(() => navigate('/login'), 2000)
@@ -25,23 +25,26 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!token) {
-      setMessage('Invalid or missing reset token')
+
+    if (!email.trim()) {
+      setMessage('Please enter your email')
       return
     }
-    
+    if (!otp.trim()) {
+      setMessage('Please enter the OTP sent to your email')
+      return
+    }
     if (newPassword.length < 6) {
       setMessage('Password must be at least 6 characters')
       return
     }
-    
+
     if (newPassword !== confirmPassword) {
       setMessage('Passwords do not match')
       return
     }
 
-    mutation.mutate({ token, newPassword })
+    mutation.mutate({ email, otp, newPassword })
   }
 
   return (
@@ -49,10 +52,40 @@ export default function ResetPasswordPage() {
       <div className="max-w-md w-full bg-white rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold text-center mb-6">Reset Password</h2>
         <p className="text-gray-600 text-center mb-6">
-          Enter your new password below.
+          Enter your email and the OTP you received, then choose a new password.
         </p>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="your@email.com"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-1">
+              OTP Code
+            </label>
+            <input
+              id="otp"
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter OTP"
+              required
+            />
+          </div>
+
           <div>
             <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
               New Password
