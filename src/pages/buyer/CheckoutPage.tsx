@@ -140,8 +140,8 @@ export function CheckoutPage() {
       if (typeof payRes.data === 'string' && payRes.data.includes('FAILED')) {
         toast.error('Payment failed. You can retry from the order page.')
         navigate(`/orders/${order.uuid}`)
-      } else if (typeof payRes.data === 'string' && payRes.data.startsWith('rzp_')) {
-        // Razorpay order id returned, start checkout
+      } else if (typeof payRes.data === 'string' && payRes.data.startsWith('order_')) {
+        // Razorpay order id returned (format: order_xxxxx), start checkout
         await openRazorpay(payRes.data, payableAmount, order.uuid)
       } else {
         toast.success('Order placed & payment successful! 🎉')
